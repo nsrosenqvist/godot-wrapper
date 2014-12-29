@@ -68,20 +68,22 @@ function install() {
 	cd "$prevpwd"
 
 	## Create a launcher
-	sudo touch "$applauncher"
-	write_launcher "[Desktop Entry]"
-	write_launcher "Name=Godot"
-	write_launcher "Comment=Make games"
-	write_launcher "GenericName=Godot"
-	write_launcher "Keywords=Games"
-	write_launcher "Exec=bash \"$appscript\""
-	write_launcher "Terminal=false"
-	write_launcher "X-MultipleArgs=false"
-	write_launcher "Type=Application"
-	write_launcher "Icon=$appdir/icon.png"
-	write_launcher "Categories=Game;"
-	write_launcher "MimeType=;"
-	write_launcher "StartupNotify=true"
+	if [ ! -f "$applauncher" ]; then
+		sudo touch "$applauncher"
+		write_launcher "[Desktop Entry]"
+		write_launcher "Name=Godot"
+		write_launcher "Comment=Make games"
+		write_launcher "GenericName=Godot"
+		write_launcher "Keywords=Games"
+		write_launcher "Exec=bash \"$appscript\""
+		write_launcher "Terminal=false"
+		write_launcher "X-MultipleArgs=false"
+		write_launcher "Type=Application"
+		write_launcher "Icon=$appdir/icon.png"
+		write_launcher "Categories=Game;"
+		write_launcher "MimeType=;"
+		write_launcher "StartupNotify=true"
+	fi
 
 	## Set permissions
 	sudo chmod -R 755 "$appdir"
@@ -89,8 +91,12 @@ function install() {
 	sudo chmod +x "$appdir/godot-engine"
 
 	## Symlink launcher and executable
-	sudo ln -s "$applauncher" /usr/share/applications/godot.desktop
-	sudo ln -s "$appscript" /usr/local/bin/godot
+	if [ ! -e /usr/share/applications/godot.desktop ]; then
+		sudo ln -s "$applauncher" /usr/share/applications/godot.desktop
+	fi
+	if [ ! -e /usr/local/bin/godot ]; then
+		sudo ln -s "$appscript" /usr/local/bin/godot
+	fi
 
 	echo "If no error messages have been given then Godot is now installed."
 	return 0
@@ -130,7 +136,7 @@ case "$1" in
 		$($0 check "$latest") ## Run it again in a sub-shell and compare versions
 	;;
 	check)
-		if [ "$2" != "boo" ]; then
+		if [ "$2" != "$latest" ]; then
 			update
 		fi
 	;;
