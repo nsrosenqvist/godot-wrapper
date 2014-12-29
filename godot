@@ -1,0 +1,141 @@
+#!/bin/bash
+
+#--------------------------------------------------------------------------#
+# A simple script to properly install the Godot game engine on Ubuntu
+# Copyright (C) 2014 Niklas Rosenqvist
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+# USA
+#--------------------------------------------------------------------------#
+
+if [ -h "$0" ]; then
+	appdir="$(dirname "$(readlink -f "$0")")"
+else
+	appdir="$(cd "$(dirname "$0")" && pwd)"
+fi
+
+applauncher="$appdir/godot.desktop"
+appscript="$appdir/$(basename "$0")"
+latest64="https://godot.blob.core.windows.net/release/2014-12-15/godot_x11-1.0stable.64"
+latest32="https://godot.blob.core.windows.net/release/2014-12-15/godot_x11-1.0stable.32"
+latest=""
+
+if [ "$(uname -m)" == "x86_64" ]; then
+	latest="$latest64"
+else
+	latest="$latest32"
+fi
+
+function write_launcher() {
+	sudo sh -c "echo '$1' >> $applauncher"
+}
+
+function pad_string() {
+	printf "%-${2}s" "$1"
+}
+
+## Actions
+function helptext() {
+	echo -e "\nGodot - Usage: ${0##*/} [actions]"
+	echo -e "Godot should be launched without arguments if not one of the below actions are desired.\n"
+	echo "Actions:"
+	echo -e "\t$(pad_string "<install>" 14) Install Godot"
+	echo -e "\t$(pad_string "<uninstall>" 14) Uninstall Godot"
+	echo -e "\t$(pad_string "<update>" 14) Update Godot"
+	echo -e "\t$(pad_string "<help>" 14) Bring up the help message"
+	return 0
+}
+
+function install() {
+	## Download Godot
+	prevpwd="$(pwd)"
+	sudo mkdir -p "$appdir"
+
+	cd "$appdir"
+	sudo wget "$latest" -O godot-engine
+	cd "$prevpwd"
+
+	## Create a launcher
+	sudo touch "$applauncher"
+	write_launcher "[Desktop Entry]"
+	write_launcher "Name=Godot"
+	write_launcher "Comment=Make games"
+	write_launcher "GenericName=Godot"
+	write_launcher "Keywords=Games"
+	write_launcher "Exec=bash \"$appscript\""
+	write_launcher "Terminal=false"
+	write_launcher "X-MultipleArgs=false"
+	write_launcher "Type=Application"
+	write_launcher "Icon=$appdir/icon.png"
+	write_launcher "Categories=Game;"
+	write_launcher "MimeType=;"
+	write_launcher "StartupNotify=true"
+
+	## Set permissions
+	sudo chmod -R 755 "$appdir"
+	sudo chmod +x "$appscript"
+	sudo chmod +x "$appdir/godot-engine"
+
+	## Symlink launcher and executable
+	sudo ln -s "$applauncher" /usr/share/applications/godot.desktop
+	sudo ln -s "$appscript" /usr/local/bin/godot
+
+	echo "If no error messages have been given then Godot is now installed."
+	return 0
+}
+
+function update() {
+	## Download Godot
+	prevpwd="$(pwd)"
+
+	cd "$appdir"
+	sudo wget "$latest" -O .godot-engine
+	cd "$prevpwd"
+
+	## Switch out the old version
+	if [ -f "$appdir/godot-engine" ]; then
+		sudo rm "$appdir/godot-engine"
+	fi
+
+	sudo mv "$appdir/.godot-engine" "$appdir/godot-engine"
+	sudo chmod +x "$appdir/godot-engine"
+	return 0
+}
+
+function uninstall() {
+	sudo rm /usr/local/bin/godot
+	sudo rm /usr/share/applications/godot.desktop
+	sudo rm -R "$appdir"
+	return 0
+}
+
+## Main
+case "$1" in
+	[Ii]*) install;;
+	[Rr]*|Un*|UN*|un*) uninstall;;
+	Up*|UP*|up*) # update
+		git pull ## Pull down the latest version of the script
+		$($0 check "$latest") ## Run it again in a sub-shell and compare versions
+	;;
+	check)
+		if [ "$2" != "boo" ]; then
+			update
+		fi
+	;;
+	help) helptext;;
+	*) "$appdir/godot-engine";;
+esac
+
+exit $?
