@@ -28,7 +28,7 @@ fi
 
 applauncher="$appdir/godot.desktop"
 appscript="$appdir/$(basename "$0")"
-latest64="https://godot.blob.core.windows.net/devel/2014-11-27/godot_x11-1.0devel.64" #"https://godot.blob.core.windows.net/release/2014-12-15/godot_x11-1.0stable.64"
+latest64="https://godot.blob.core.windows.net/release/2014-12-15/godot_x11-1.0stable.64"
 latest32="https://godot.blob.core.windows.net/release/2014-12-15/godot_x11-1.0stable.32"
 latest=""
 
