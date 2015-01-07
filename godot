@@ -42,7 +42,7 @@ else
 fi
 
 function write_launcher() {
-	sudo sh -c "echo '$1' >> $applauncher"
+	echo "$1" >> $applauncher
 }
 
 function pad_string() {
@@ -65,7 +65,7 @@ function install_dependencies() {
 
 function create_launcher() {
 	if [ ! -f "$applauncher" ]; then
-		sudo touch "$applauncher"
+		touch "$applauncher"
 		write_launcher "[Desktop Entry]"
 		write_launcher "Name=Godot"
 		write_launcher "Comment=Make games"
@@ -149,10 +149,10 @@ function version() {
 
 function download() {
 	if [ ! -d "$appdir/source" ]; then
-		sudo git clone "$repo" "$appdir/source"
-		sudo chmod -R 755 "$appdir"
+		git clone "$repo" "$appdir/source"
+		chmod -R 755 "$appdir"
 	else
-		cd "$appdir/source" && git stash save --quiet && git stash drop &>/dev/null && sudo git pull --quiet && cd "$appdir"
+		cd "$appdir/source" && git stash save --quiet && git stash drop &>/dev/null && git pull --quiet && cd "$appdir"
 	fi
 }
 
@@ -258,11 +258,11 @@ function install() {
 	fi
 
 	mv "$appdir/source/bin/godot.x11.tools.64" "$appdir/releases/godot-engine_${tag}"
-	sudo chmod -R 755 "$appdir/releases"
-	sudo chmod +x "$appdir/releases/"*
+	chmod -R 755 "$appdir/releases"
+	chmod +x "$appdir/releases/"*
 
 	use "$tag"
-	sudo chmod +x "$appscript"
+	chmod +x "$appscript"
 
 	# Launcher
 	if [ ! -f "$applauncher" ]; then
@@ -277,7 +277,7 @@ function install() {
 		sudo ln -s "$appscript" /usr/local/bin/godot
 	fi
 
-	sudo chmod -R 755 "$appdir"
+	chmod -R 755 "$appdir"
 	return 0
 }
 
@@ -288,7 +288,7 @@ function use() {
 		fi
 
 		ln -s "$appdir/releases/godot-engine_${1}" "$appdir/godot-engine"
-		sudo chmod +x "$appdir/godot-engine"
+		chmod +x "$appdir/godot-engine"
 	else
 		echo "Error! Version $1 is not installed. Install it with \"godot install $1\""
 		exit 1
@@ -350,11 +350,11 @@ function uninstall() {
 			in_use=0
 		fi
 
-		sudo rm "$appdir/releases/godot-engine_${version}"
+		rm "$appdir/releases/godot-engine_${version}"
 
 		# If it was the last version, remove the system integration
 		if [ -z "$(installed)" ]; then
-			sudo rm "$appdir/godot-engine"
+			rm "$appdir/godot-engine"
 			sudo rm /usr/local/bin/godot
 			sudo rm /usr/share/applications/godot.desktop
 
@@ -367,7 +367,7 @@ function uninstall() {
 
 	# Delete containing dir
 	if [ $delete_all -eq 0 ]; then
-		sudo rm -R "$appdir"
+		rm -R "$appdir"
 	# Or ...
 	else
 		# Set anoother version as the current one if the previous one was in use
