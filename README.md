@@ -9,4 +9,4 @@ There's a one-liner copy-and-paste here below to get Godot installed:
 git clone https://github.com/nsrosenqvist/godot-wrapper.git godot && cd godot && ./godot install
 ```
 
-Now you should be able to launch Godot from the application menu or the terminal. See all the features that the script support by running `godot help`.
+Now you should be able to launch Godot from the application menu or the terminal. See all the features that the script provides by running `godot help`.
