@@ -149,10 +149,10 @@ function version() {
 
 function download() {
 	if [ ! -d "$appdir/source" ]; then
-		git clone "$repo" "$appdir/source"
+		sudo git clone "$repo" "$appdir/source"
 		sudo chmod -R 755 "$appdir"
 	else
-		cd "$appdir/source" && git stash save --quiet && git stash drop &>/dev/null && git pull --quiet && cd "$appdir"
+		cd "$appdir/source" && git stash save --quiet && git stash drop &>/dev/null && sudo git pull --quiet && cd "$appdir"
 	fi
 }
 
