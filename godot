@@ -98,7 +98,7 @@ function helptext() {
 }
 
 function version() {
-	if [ "$1" = "list" ]; then
+	if [ "$1" = "list" ] || [ "$1" = "all" ] || [ "$1" = "show" ]; then
 		download
 		local maxlen=0
 		local installed=""
