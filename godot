@@ -367,7 +367,7 @@ function uninstall() {
 
 	# Delete containing dir
 	if [ $delete_all -eq 0 ]; then
-		rm -R "$appdir"
+		rm -Rf "$appdir"
 	# Or ...
 	else
 		# Set anoother version as the current one if the previous one was in use
