@@ -2,3 +2,7 @@
 .godot-engine
 godot-engine
 godot.desktop
+
+source
+releases/*
+!*.gitkeep

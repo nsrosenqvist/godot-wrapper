@@ -2,7 +2,7 @@
 
 #--------------------------------------------------------------------------#
 # A simple script to properly install the Godot game engine on Ubuntu
-# Copyright (C) 2014 Niklas Rosenqvist
+# Copyright (C) 2015 Niklas Rosenqvist
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -26,16 +26,19 @@ else
 	appdir="$(cd "$(dirname "$0")" && pwd)"
 fi
 
+prevpwd="$(pwd)"
+cd "$appdir"
+
 applauncher="$appdir/godot.desktop"
 appscript="$appdir/$(basename "$0")"
-latest64="https://godot.blob.core.windows.net/release/2014-12-15/godot_x11-1.0stable.64"
-latest32="https://godot.blob.core.windows.net/release/2014-12-15/godot_x11-1.0stable.32"
-latest=""
+repo="https://github.com/okamstudio/godot.git"
+json_releases=""
+dependencies=(git scons pkg-config libx11-dev libxcursor-dev build-essential libasound2-dev libfreetype6-dev libgl1-mesa-dev libglu-dev libssl-dev) #curl jq
 
-if [ "$(uname -m)" == "x86_64" ]; then
-	latest="$latest64"
+if [ "$(uname -m)" = "x86_64" ]; then
+	arch="x64"
 else
-	latest="$latest32"
+	arch="x86"
 fi
 
 function write_launcher() {
@@ -46,28 +49,21 @@ function pad_string() {
 	printf "%-${2}s" "$1"
 }
 
-## Actions
-function helptext() {
-	echo -e "\nGodot - Usage: ${0##*/} [actions]"
-	echo -e "Godot should be launched without arguments if not one of the below actions are desired.\n"
-	echo "Actions:"
-	echo -e "\t$(pad_string "<install>" 14) Install Godot"
-	echo -e "\t$(pad_string "<uninstall>" 14) Uninstall Godot"
-	echo -e "\t$(pad_string "<update>" 14) Update Godot"
-	echo -e "\t$(pad_string "<help>" 14) Bring up the help message"
-	return 0
+function take_if_higher() {
+	local oldval=$1
+	local newval=$2
+	local saveto="$3"
+	if [ $newval -gt $oldval ]; then
+		eval "$saveto=$2"
+	fi
 }
 
-function install() {
-	## Download Godot
-	prevpwd="$(pwd)"
-	sudo mkdir -p "$appdir"
+function install_dependencies() {
+	sudo apt-get install -y ${dependencies[@]}
+	return $?
+}
 
-	cd "$appdir"
-	sudo wget "$latest" -O godot-engine
-	cd "$prevpwd"
-
-	## Create a launcher
+function create_launcher() {
 	if [ ! -f "$applauncher" ]; then
 		sudo touch "$applauncher"
 		write_launcher "[Desktop Entry]"
@@ -84,64 +80,320 @@ function install() {
 		write_launcher "MimeType=;"
 		write_launcher "StartupNotify=true"
 	fi
+}
 
-	## Set permissions
-	sudo chmod -R 755 "$appdir"
+## Actions
+function helptext() {
+	echo -e "\nGodot - Usage: ${0##*/} [action] [optional arguments]"
+	echo -e "Running Godot without any of the specified arguments will launch the GUI.\n"
+	echo "Actions:"
+	echo -e "\t$(pad_string "<install>   [version]" 25) Install Godot"
+	echo -e "\t$(pad_string "<uninstall> [version]" 25) Uninstall Godot"
+	echo -e "\t$(pad_string "<update>" 25) Update Godot to latest stable version"
+	echo -e "\t$(pad_string "<download>" 25) Download or update Godot repository"
+	echo -e "\t$(pad_string "<use>       <version>" 25) Set which version to use"
+	echo -e "\t$(pad_string "<help>" 25) Bring up the help message"
+	echo -e "\t$(pad_string "*" 25) Launch Godot (unmatched arguments will be passed along to the Godot binary)"
+	return 0
+}
+
+function version() {
+	if [ "$1" = "list" ]; then
+		download
+		local maxlen=0
+		local installed=""
+		local active=""
+		local versions=($(cd "$appdir/source" && git tag))
+		versions+=("master")
+
+		for i in ${versions[@]}; do
+			take_if_higher $maxlen ${#i} "maxlen"
+		done
+
+		maxlen=$(($maxlen+4))
+		echo -n "$(pad_string "Version:" $maxlen)"
+		echo -n "$(pad_string "Installed:" 14)"
+		echo "$(pad_string "Active:" 11)"
+
+		for i in "${versions[@]}"; do
+			# Version
+			echo -n "$(pad_string "$i" $maxlen)"
+
+			# Installed
+			is_installed "$i"
+			if [ $? -eq 0 ]; then
+				installed="yes"
+			else
+				installed=""
+			fi
+
+			echo -n "$(pad_string "$installed" 14)"
+
+			# Active
+			is_active "$i"
+			if [ $? -eq 0 ]; then
+				active="yes"
+			else
+				active=""
+			fi
+
+			echo "$(pad_string "$active" 11)"
+		done
+	else
+		if [ -h "godot-engine" ]; then
+			local filename="$(basename "$(readlink -f "$appdir/godot-engine")")"
+			echo "${filename#*_}"
+		fi
+	fi
+}
+
+function download() {
+	if [ ! -d "$appdir/source" ]; then
+		git clone "$repo" "$appdir/source"
+		sudo chmod -R 755 "$appdir"
+	else
+		cd "$appdir/source" && git stash save --quiet && git stash drop &>/dev/null && git pull --quiet && cd "$appdir"
+	fi
+}
+
+function is_installed() {
+	for version in $(installed); do
+		if [ "$1" = "$version" ]; then
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+function is_active() {
+	if [ "$(basename "$(readlink -f "$appdir/godot-engine")")" = "godot-engine_${1}" ]; then
+		return 0
+	fi
+	return 1
+}
+
+function installed() {
+	for file in $(ls "$appdir/releases"); do
+		local filename="$(basename "$file")"
+
+		if [[ "$filename" == "godot-engine_"* ]]; then
+			local version="${filename#*_}"
+			echo "$version"
+		fi
+	done
+}
+
+function is_tag() {
+	if [ "$1" = "master" ] || [ "$1" = "dev" ]; then
+		return 0
+	fi
+
+	for tag in $(cd "$appdir/source" && git tag); do
+		if [ "$tag" = "$1" ]; then
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+function get_latest_stable() {
+	tags=($(cd "$appdir/source" && git tag))
+	latest_stable="1.0-stable"
+
+	for (( idx=${#tags[@]}-1 ; idx>=0 ; idx-- )) ; do
+		if [[ $string == *"stable"* ]]; then
+			latest_stable="${tags[idx]}"
+			break
+		fi
+	done
+
+	echo "$latest_stable"
+}
+
+function get_tag() {
+	if [ "$1" = "dev" ] || [ "$1" = "master" ]; then
+		echo "master"
+	else
+		# Check that it's a tag
+		is_tag "$1"
+
+		if [ $? -eq 0 ]; then
+			echo "$1"
+		fi
+
+		# Return latest stable
+		echo "$(get_latest_stable)"
+	fi
+}
+
+function install() {
+	# Make sure repo is up to date
+	download
+
+	# Get version to install
+	local tag="$(get_tag "$1")"
+
+	is_installed "$tag"
+	if [ $? -eq 0 ]; then
+		echo "$tag is already installed."
+		return 1
+	fi
+
+	# Verify that we got all that we need to build godot
+	install_dependencies
+
+	# Start installation
+	echo "Installing Godot $tag..."
+
+	# Build Godot
+	cd "$appdir/source" && git checkout $1 && scons platform=x11
+	local result=$?
+	cd "$appdir"
+
+	if [ $result -ne 0 ]; then
+		echo "Error while building!"
+		return 1
+	fi
+
+	mv "$appdir/source/bin/godot.x11.tools.64" "$appdir/releases/godot-engine_${tag}"
+	sudo chmod -R 755 "$appdir/releases"
+	sudo chmod +x "$appdir/releases/"*
+
+	use "$tag"
 	sudo chmod +x "$appscript"
-	sudo chmod +x "$appdir/godot-engine"
 
-	## Symlink launcher and executable
-	if [ ! -e /usr/share/applications/godot.desktop ]; then
+	# Launcher
+	if [ ! -f "$applauncher" ]; then
+		create_launcher
+	fi
+	if [ ! -h /usr/share/applications/godot.desktop ]; then
 		sudo ln -s "$applauncher" /usr/share/applications/godot.desktop
 	fi
-	if [ ! -e /usr/local/bin/godot ]; then
+
+	# Executable
+	if [ ! -h /usr/local/bin/godot ]; then
 		sudo ln -s "$appscript" /usr/local/bin/godot
 	fi
 
-	echo "If no error messages have been given then Godot is now installed."
+	sudo chmod -R 755 "$appdir"
+	return 0
+}
+
+function use() {
+	if [ -f "$appdir/releases/godot-engine_${1}" ]; then
+		if [ -h "godot-engine" ]; then
+			rm godot-engine
+		fi
+
+		ln -s "$appdir/releases/godot-engine_${1}" "$appdir/godot-engine"
+		sudo chmod +x "$appdir/godot-engine"
+	else
+		echo "Error! Version $1 is not installed. Install it with \"godot install $1\""
+		exit 1
+	fi
+
 	return 0
 }
 
 function update() {
-	## Download Godot
-	prevpwd="$(pwd)"
-
-	cd "$appdir"
-	sudo wget "$latest" -O .godot-engine
-	cd "$prevpwd"
-
-	## Switch out the old version
-	if [ -f "$appdir/godot-engine" ]; then
-		sudo rm "$appdir/godot-engine"
+	if [ ! -d "$appdir/source" ]; then
+		echo "Error! You must install Godot first"
+		exit 1
 	fi
 
-	sudo mv "$appdir/.godot-engine" "$appdir/godot-engine"
-	sudo chmod +x "$appdir/godot-engine"
+	download
+	latest_stable="$(get_latest_stable)"
+
+	if [ ! -f "$appdir/releases/godot-engine_${latest_stable}" ]; then
+		echo "A new stable version was found: ${latest_stable}"
+		echo "Installing..."
+
+		install "${latest_stable}"
+		if [ $? -ne 0 ]; then
+			return 1
+		fi
+	else
+		echo "No new stable version was found (current: $(version))."
+		echo "See all available versions by running \"godot version list\""
+	fi
+
 	return 0
 }
 
 function uninstall() {
-	sudo rm /usr/local/bin/godot
-	sudo rm /usr/share/applications/godot.desktop
-	sudo rm -R "$appdir"
+	local uninstall=()
+	local in_use=1
+	local delete_all=1
+
+	# Select which versions to uninstall
+	if [ "$1" = "all" ] || [ -z "$1" ]; then
+		for version in $(installed); do
+			uninstall+=("$version")
+		done
+	else
+		is_tag "$1"
+		if [ $? -eq 0 ]; then
+			uninstall+=("$1")
+		fi
+	fi
+
+	if [ -z "$(echo "${uninstall[@]}")" ]; then
+		echo "Nothing selected to uninstall."
+		return 0
+	fi
+
+	# Uninstall every selected version
+	for version in ${uninstall[@]}; do
+		if [ "$version" = "$(version)" ]; then
+			in_use=0
+		fi
+
+		sudo rm "$appdir/releases/godot-engine_${version}"
+
+		# If it was the last version, remove the system integration
+		if [ -z "$(installed)" ]; then
+			sudo rm "$appdir/godot-engine"
+			sudo rm /usr/local/bin/godot
+			sudo rm /usr/share/applications/godot.desktop
+
+			read -p "Do you want to remove the directory containing the Godot files as well? (y/n) " yn
+			case $yn in
+				[Yy]*) delete_all=0;;
+			esac
+		fi
+	done
+
+	# Delete containing dir
+	if [ $delete_all -eq 0 ]; then
+		sudo rm -R "$appdir"
+	# Or ...
+	else
+		# Set anoother version as the current one if the previous one was in use
+		if [ -n "$(installed)" ] && [ $in_use -eq 0 ]; then
+			for version in $(installed); do
+				echo "Uninstalled current active version, changing to ${version}..."
+				use "$version"
+				break
+			done
+		fi
+	fi
+
 	return 0
 }
 
 ## Main
-case "$1" in
-	[Ii]*) install;;
-	[Rr]*|Un*|UN*|un*) uninstall;;
-	Up*|UP*|up*) # update
-		git pull ## Pull down the latest version of the script
-		$($0 check "$latest") ## Run it again in a sub-shell and compare versions
-	;;
-	check)
-		if [ "$2" != "$latest" ]; then
-			update
-		fi
-	;;
+case "${1,,}" in
+	install) install "$2";;
+	uninstall) uninstall "$2";;
+	update) update;;
+	download) download;;
+	use) use "$2";;
+	version) version "$2";;
 	help) helptext;;
-	*) "$appdir/godot-engine";;
+	*) $(readlink -f "$appdir/godot-engine") $*;;
 esac
 
+cd "$prevpwd"
 exit $?
