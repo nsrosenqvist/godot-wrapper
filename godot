@@ -1,7 +1,8 @@
 #!/bin/bash
 
 #--------------------------------------------------------------------------#
-# A simple script to properly install the Godot game engine on Ubuntu
+# A simple script to properly install the Godot game engine on Ubuntu and also
+# provide version management.
 # Copyright (C) 2015 Niklas Rosenqvist
 #
 # This library is free software; you can redistribute it and/or
@@ -84,78 +85,111 @@ function create_launcher() {
 
 ## Actions
 function helptext() {
+	local padding=32
 	echo -e "\nGodot - Usage: ${0##*/} [action] [optional arguments]"
 	echo -e "Running Godot without any of the specified arguments will launch the GUI.\n"
 	echo "Actions:"
-	echo -e "\t$(pad_string "<install>   [version]" 27) Install Godot"
-	echo -e "\t$(pad_string "<uninstall> [version]" 27) Uninstall Godot"
-	echo -e "\t$(pad_string "<use>       <version>" 27) Set which version to use"
-	echo -e "\t$(pad_string "<update>" 27) Update Godot to latest stable version"
-	echo -e "\t$(pad_string "<download|refresh>" 27) Download or update Godot repository"
-	echo -e "\t$(pad_string "<help>" 27) Bring up the help message"
-	echo -e "\t$(pad_string "<version>   [list|local]" 27) Show current active version. \"list\" outputs all available versions. \"local\" skips updating the git repo."
-	echo -e "\t$(pad_string "*" 27) Launch Godot (unmatched arguments will be passed along to the Godot binary)"
+	echo -e "\t$(pad_string "<install>   [version]" $padding) Install Godot"
+	echo -e "\t$(pad_string "<uninstall> [version]" $padding) Uninstall Godot"
+	echo -e "\t$(pad_string "<use>       <version>" $padding) Set which version to use"
+	echo -e "\t$(pad_string "<update>" $padding) Update Godot to latest stable version"
+	echo -e "\t$(pad_string "<download|refresh>" $padding) Download or update Godot repository"
+	echo -e "\t$(pad_string "<help>" $padding) Bring up the help message"
+	echo -e "\t$(pad_string "<releases>  [status]  [local]" $padding) Lists all releases in a detailed table. \"local\" skips updating the git repo before showing the list."
+	echo -e "\t$(pad_string " -          all       [local]" $padding) Only outputs a list, and not a table."
+	echo -e "\t$(pad_string " -          installed [local]" $padding) Only outputs installed releases."
+	echo -e "\t$(pad_string " -          available [local]" $padding) Only outputs releases that haven't been installed yet."
+	echo -e "\t$(pad_string "<version>" $padding) Show current active release."
+	echo -e "\t$(pad_string "[*]" $padding) Launch Godot (unmatched arguments will be passed along to the Godot binary)"
+	return 0
+}
+
+function releases() {
+	local norefresh=1
+	local i
+
+	# Check whether to skip updating the Godot repo
+	if [ "${1,,}" != "local" ]; then
+		if [ "${2,,}" != "local" ]; then
+			download
+		fi
+	fi
+
+	case "${1,,}" in
+		# List all available versions
+		all)
+			for i in $(cd "$appdir/source" && git tag); do
+				echo "$i"
+			done
+			echo "master"
+			return 0
+		;;
+		# List all installed version
+		installed)
+			installed
+			return $?
+		;;
+		# List all not yet installed versions
+		available)
+			for i in $(releases "all" "local"); do
+				is_installed "$i"
+				if [ $? -ne 0 ]; then
+					echo "$i"
+				fi
+			done
+			return 0
+		;;
+		# Output a table showing detailed version information
+		*)
+			local maxlen=0
+			local installed=""
+			local active=""
+			local versions=($(cd "$appdir/source" && git tag))
+			versions+=("master")
+
+			for i in ${versions[@]}; do
+				take_if_higher $maxlen ${#i} "maxlen"
+			done
+
+			maxlen=$(($maxlen+4))
+			echo -n "$(pad_string "Version:" $maxlen)"
+			echo -n "$(pad_string "Installed:" 14)"
+			echo "$(pad_string "Active:" 11)"
+
+			for i in "${versions[@]}"; do
+				# Version
+				echo -n "$(pad_string "$i" $maxlen)"
+
+				# Installed
+				is_installed "$i"
+				if [ $? -eq 0 ]; then
+					installed="yes"
+				else
+					installed=""
+				fi
+
+				echo -n "$(pad_string "$installed" 14)"
+
+				# Active
+				is_active "$i"
+				if [ $? -eq 0 ]; then
+					active="yes"
+				else
+					active=""
+				fi
+
+				echo "$(pad_string "$active" 11)"
+			done
+		;;
+	esac
+
 	return 0
 }
 
 function version() {
-	local norefresh=1
-	local action="$1"
-
-	if [ "$1" = "local" ]; then
-		norefresh=0
-		action="list"
-	fi
-
-	if [ "$action" = "list" ] || [ "$action" = "all" ] || [ "$action" = "show" ]; then
-		if [ $norefresh -ne 0 ]; then
-			download
-		fi
-
-		local maxlen=0
-		local installed=""
-		local active=""
-		local versions=($(cd "$appdir/source" && git tag))
-		versions+=("master")
-
-		for i in ${versions[@]}; do
-			take_if_higher $maxlen ${#i} "maxlen"
-		done
-
-		maxlen=$(($maxlen+4))
-		echo -n "$(pad_string "Version:" $maxlen)"
-		echo -n "$(pad_string "Installed:" 14)"
-		echo "$(pad_string "Active:" 11)"
-
-		for i in "${versions[@]}"; do
-			# Version
-			echo -n "$(pad_string "$i" $maxlen)"
-
-			# Installed
-			is_installed "$i"
-			if [ $? -eq 0 ]; then
-				installed="yes"
-			else
-				installed=""
-			fi
-
-			echo -n "$(pad_string "$installed" 14)"
-
-			# Active
-			is_active "$i"
-			if [ $? -eq 0 ]; then
-				active="yes"
-			else
-				active=""
-			fi
-
-			echo "$(pad_string "$active" 11)"
-		done
-	else
-		if [ -h "godot-engine" ]; then
-			local filename="$(basename "$(readlink -f "$appdir/godot-engine")")"
-			echo "${filename#*_}"
-		fi
+	if [ -h "godot-engine" ]; then
+		local filename="$(basename "$(readlink -f "$appdir/godot-engine")")"
+		echo "${filename#*_}"
 	fi
 }
 
@@ -169,8 +203,10 @@ function download() {
 }
 
 function is_installed() {
-	for version in $(installed); do
-		if [ "$1" = "$version" ]; then
+	local i
+
+	for i in $(installed); do
+		if [ "$1" = "$i" ]; then
 			return 0
 		fi
 	done
@@ -186,6 +222,8 @@ function is_active() {
 }
 
 function installed() {
+	local file
+
 	for file in $(ls "$appdir/releases"); do
 		local filename="$(basename "$file")"
 
@@ -197,6 +235,8 @@ function installed() {
 }
 
 function is_tag() {
+	local tag
+
 	if [ "$1" = "master" ] || [ "$1" = "dev" ]; then
 		return 0
 	fi
@@ -211,8 +251,9 @@ function is_tag() {
 }
 
 function get_latest_stable() {
-	tags=($(cd "$appdir/source" && git tag))
-	latest_stable="1.0-stable"
+	local tags=($(cd "$appdir/source" && git tag))
+	local latest_stable="1.0-stable"
+	local idx
 
 	for (( idx=${#tags[@]}-1 ; idx>=0 ; idx-- )) ; do
 		if [[ $string == *"stable"* ]]; then
@@ -289,6 +330,11 @@ function install() {
 		sudo ln -s "$appscript" /usr/local/bin/godot
 	fi
 
+	# Bash completion
+	if [ ! -h /etc/bash_completion.d/godot ]; then
+		sudo ln -s "$appdir/bash_completion.d/godot" /etc/bash_completion.d/godot
+	fi
+
 	chmod -R 755 "$appdir"
 	return 0
 }
@@ -338,11 +384,12 @@ function uninstall() {
 	local uninstall=()
 	local in_use=1
 	local delete_all=1
+	local i
 
 	# Select which versions to uninstall
 	if [ "$1" = "all" ] || [ -z "$1" ]; then
-		for version in $(installed); do
-			uninstall+=("$version")
+		for i in $(installed); do
+			uninstall+=("$i")
 		done
 	else
 		is_tag "$1"
@@ -357,18 +404,19 @@ function uninstall() {
 	fi
 
 	# Uninstall every selected version
-	for version in ${uninstall[@]}; do
-		if [ "$version" = "$(version)" ]; then
+	for i in ${uninstall[@]}; do
+		if [ "$i" = "$(version)" ]; then
 			in_use=0
 		fi
 
-		rm "$appdir/releases/godot-engine_${version}"
+		rm "$appdir/releases/godot-engine_${i}"
 
 		# If it was the last version, remove the system integration
 		if [ -z "$(installed)" ]; then
 			rm "$appdir/godot-engine"
 			sudo rm /usr/local/bin/godot
 			sudo rm /usr/share/applications/godot.desktop
+			sudo rm /etc/bash_completion.d/godot
 
 			read -p "Do you want to remove the directory containing the Godot files as well? (y/n) " yn
 			case $yn in
@@ -384,9 +432,9 @@ function uninstall() {
 	else
 		# Set anoother version as the current one if the previous one was in use
 		if [ -n "$(installed)" ] && [ $in_use -eq 0 ]; then
-			for version in $(installed); do
-				echo "Uninstalled current active version, changing to ${version}..."
-				use "$version"
+			for i in $(installed); do
+				echo "Uninstalled current active version, changing to ${i}..."
+				use "$i"
 				break
 			done
 		fi
@@ -402,7 +450,8 @@ case "${1,,}" in
 	update) update;;
 	download|refresh) download;;
 	use) use "$2";;
-	version) version "$2";;
+	releases) releases "$2" "$3";;
+	version) version;;
 	help) helptext;;
 	*) $(readlink -f "$appdir/godot-engine") $*;;
 esac

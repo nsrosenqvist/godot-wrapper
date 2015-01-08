@@ -1,0 +1,74 @@
+#!/bin/bash
+
+#--------------------------------------------------------------------------#
+# A simple script to properly install the Godot game engine on Ubuntu and also
+# provide version management.
+# Copyright (C) 2015 Niklas Rosenqvist
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+# USA
+#--------------------------------------------------------------------------#
+
+_godot()
+{
+    local cur prev opts base
+    local versions=""
+    local ver
+
+    COMPREPLY=()
+
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    old="${COMP_WORDS[COMP_CWORD-2]}"
+    opts="install uninstall use update download refresh help releases version"
+
+    case "${prev}" in
+        install)
+            for ver in $(godot releases available "local"); do
+                versions+="$ver "
+            done
+
+            COMPREPLY=( $(compgen -W "${versions}" -- ${cur}) )
+            return 0
+        ;;
+        uninstall|use)
+            for ver in $(godot releases installed "local"); do
+                versions+="$ver "
+            done
+
+            COMPREPLY=( $(compgen -W "${versions}" -- ${cur}) )
+            return 0
+        ;;
+        releases)
+            COMPREPLY=( $(compgen -W "local installed all available" -- ${cur}) )
+            return 0
+        ;;
+        *)
+            if [ "$prev" = "godot" ]; then
+                COMPREPLY=($(compgen -W "${opts}" -- ${cur}))
+                return 0
+            else
+                if [ "$old" = "releases" ]; then
+                    COMPREPLY=($(compgen -W "local" -- ${cur}))
+                    return 0
+                else
+                    return 1
+                fi
+            fi
+        ;;
+    esac
+}
+
+complete -F _godot godot
