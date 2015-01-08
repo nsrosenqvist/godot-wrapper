@@ -87,19 +87,31 @@ function helptext() {
 	echo -e "\nGodot - Usage: ${0##*/} [action] [optional arguments]"
 	echo -e "Running Godot without any of the specified arguments will launch the GUI.\n"
 	echo "Actions:"
-	echo -e "\t$(pad_string "<install>   [version]" 25) Install Godot"
-	echo -e "\t$(pad_string "<uninstall> [version]" 25) Uninstall Godot"
-	echo -e "\t$(pad_string "<update>" 25) Update Godot to latest stable version"
-	echo -e "\t$(pad_string "<download>" 25) Download or update Godot repository"
-	echo -e "\t$(pad_string "<use>       <version>" 25) Set which version to use"
-	echo -e "\t$(pad_string "<help>" 25) Bring up the help message"
-	echo -e "\t$(pad_string "*" 25) Launch Godot (unmatched arguments will be passed along to the Godot binary)"
+	echo -e "\t$(pad_string "<install>   [version]" 27) Install Godot"
+	echo -e "\t$(pad_string "<uninstall> [version]" 27) Uninstall Godot"
+	echo -e "\t$(pad_string "<use>       <version>" 27) Set which version to use"
+	echo -e "\t$(pad_string "<update>" 27) Update Godot to latest stable version"
+	echo -e "\t$(pad_string "<download|refresh>" 27) Download or update Godot repository"
+	echo -e "\t$(pad_string "<help>" 27) Bring up the help message"
+	echo -e "\t$(pad_string "<version>   [list|local]" 27) Show current active version. \"list\" outputs all available versions. \"local\" skips updating the git repo."
+	echo -e "\t$(pad_string "*" 27) Launch Godot (unmatched arguments will be passed along to the Godot binary)"
 	return 0
 }
 
 function version() {
-	if [ "$1" = "list" ] || [ "$1" = "all" ] || [ "$1" = "show" ]; then
-		download
+	local norefresh=1
+	local action="$1"
+
+	if [ "$1" = "local" ]; then
+		norefresh=0
+		action="list"
+	fi
+
+	if [ "$action" = "list" ] || [ "$action" = "all" ] || [ "$action" = "show" ]; then
+		if [ $norefresh -ne 0 ]; then
+			download
+		fi
+
 		local maxlen=0
 		local installed=""
 		local active=""
@@ -388,7 +400,7 @@ case "${1,,}" in
 	install) install "$2";;
 	uninstall) uninstall "$2";;
 	update) update;;
-	download) download;;
+	download|refresh) download;;
 	use) use "$2";;
 	version) version "$2";;
 	help) helptext;;
