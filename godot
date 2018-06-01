@@ -34,7 +34,6 @@ applauncher="$appdir/godot.desktop"
 appscript="$appdir/$(basename "$0")"
 repo="https://github.com/okamstudio/godot.git"
 json_releases=""
-dependencies=(git scons pkg-config libx11-dev libxcursor-dev build-essential libasound2-dev libfreetype6-dev libgl1-mesa-dev libglu-dev libssl-dev) #curl jq
 
 if [ "$(uname -m)" = "x86_64" ]; then
 	arch="x64"
@@ -60,7 +59,28 @@ function take_if_higher() {
 }
 
 function install_dependencies() {
-	sudo apt-get install -y ${dependencies[@]}
+	if [[ ! -z $(which dnf) ]]; then
+		dnf install -y scons pkgconfig libX11-devel libXcursor-devel libXrandr-devel libXinerama-devel \
+			libXi-devel mesa-libGL-devel alsa-lib-devel pulseaudio-libs-devel freetype-devel openssl-devel \
+			libudev-devel mesa-libGLU-devel
+	elif [[ ! -z $(which apt-get) ]]; then
+		apt-get install -y build-essential scons pkg-config libx11-dev libxcursor-dev libxinerama-dev \
+			libgl1-mesa-dev libglu-dev libasound2-dev libpulse-dev libfreetype6-dev libssl-dev libudev-dev \
+			libxi-dev libxrandr-dev		
+	elif [[ ! -z $(which pacman) ]]; then
+		pacman -S scons libxcursor libxinerama libxi libxrandr mesa glu alsa-lib pulseaudio freetype2
+	elif [[ ! -z $(which zypper) ]]; then
+		zypper install scons pkgconfig libX11-devel libXcursor-devel libXrandr-devel libXinerama-devel \
+			libXi-devel Mesa-libGL-devel alsa-devel libpulse-devel freetype-devel openssl-devel \
+			libudev-devel libGLU1
+	elif [[ ! -z $(which eopkg) ]]; then
+		eopkg install -c system.devel scons libxcursor-devel libxinerama-devel libxi-devel \
+			libxrandr-devel mesalib-devel libglu alsa-lib pulseaudio freetype2-devel pulseaudio-devel
+	else
+		echo "Error! Unsupported package management system. Find how to install the dependencies on your distribution here: https://godot.readthedocs.io/en/latest/development/compiling/compiling_for_x11.html"
+		exit 1;
+	fi
+	
 	return $?
 }
 
@@ -294,9 +314,6 @@ function install() {
 		return 1
 	fi
 
-	# Verify that we got all that we need to build godot
-	install_dependencies
-
 	# Start installation
 	echo "Installing Godot $tag..."
 
@@ -446,6 +463,7 @@ function uninstall() {
 ## Main
 case "${1,,}" in
 	install) install "$2";;
+	dependencies) install_dependencies;;
 	uninstall) uninstall "$2";;
 	update) update;;
 	download|refresh) download;;
