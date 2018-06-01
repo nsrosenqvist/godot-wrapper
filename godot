@@ -109,6 +109,7 @@ function helptext() {
 	echo -e "\nGodot - Usage: ${0##*/} [action] [optional arguments]"
 	echo -e "Running Godot without any of the specified arguments will launch the GUI.\n"
 	echo "Actions:"
+	echo -e "\t$(pad_string "<dependencies>" $padding) Install dependencies"
 	echo -e "\t$(pad_string "<install>   [version]" $padding) Install Godot"
 	echo -e "\t$(pad_string "<uninstall> [version]" $padding) Uninstall Godot"
 	echo -e "\t$(pad_string "<use>       <version>" $padding) Set which version to use"
