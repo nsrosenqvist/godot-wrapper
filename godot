@@ -88,17 +88,15 @@ function create_launcher() {
 	if [ ! -f "$applauncher" ]; then
 		touch "$applauncher"
 		write_launcher "[Desktop Entry]"
-		write_launcher "Name=Godot"
-		write_launcher "Comment=Make games"
-		write_launcher "GenericName=Godot"
-		write_launcher "Keywords=Games"
+		write_launcher "Name=Godot Engine"
+		write_launcher "Comment=Multi-platform 2D and 3D game engine with a feature rich editor"
+		write_launcher "GenericName=Libre game engine"
 		write_launcher "Exec=bash \"$appscript\""
 		write_launcher "Terminal=false"
 		write_launcher "X-MultipleArgs=false"
 		write_launcher "Type=Application"
 		write_launcher "Icon=$appdir/icon.png"
-		write_launcher "Categories=Game;"
-		write_launcher "MimeType=;"
+		write_launcher "Categories=Development;IDE;"
 		write_launcher "StartupNotify=true"
 	fi
 }
