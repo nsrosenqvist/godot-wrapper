@@ -1,7 +1,7 @@
 Godot-wrapper
 =============
 
-A BASH script that downloads and integrates the [Godot engine](http://www.godotengine.org/) for Ubuntu. It also enables version managing and installation of git master. The application icon belongs to the [Godot project](https://github.com/okamstudio/godot).
+A BASH script that downloads and integrates the [Godot engine](http://www.godotengine.org/) for Ubuntu. It also enables version managing and installation of git master. The application icon belongs to the [Godot project](https://github.com/godotengine/godot).
 
 There's a one-liner copy-and-paste here below to get Godot installed:
 
