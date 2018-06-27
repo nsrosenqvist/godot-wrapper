@@ -32,7 +32,7 @@ cd "$appdir"
 
 applauncher="$appdir/godot.desktop"
 appscript="$appdir/$(basename "$0")"
-repo="https://github.com/okamstudio/godot.git"
+repo="https://github.com/godotengine/godot.git"
 json_releases=""
 
 if [ "$(uname -m)" = "x86_64" ]; then
