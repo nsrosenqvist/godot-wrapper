@@ -1,6 +1,10 @@
 Godot-wrapper
 =============
 
+**NOTE:** This repository is now archived. However, it probably still works, but I haven't touched the code in many years and there appears to be a much better featured alternative available, called [GodotEnv](https://github.com/chickensoft-games/GodotEnv), which I recommend you to consider instead.
+
+---
+
 A BASH script that downloads and integrates the [Godot engine](http://www.godotengine.org/) for Ubuntu. It also enables version managing and installation of git master. The application icon belongs to the [Godot project](https://github.com/godotengine/godot).
 
 There's a one-liner copy-and-paste here below to get Godot installed:
